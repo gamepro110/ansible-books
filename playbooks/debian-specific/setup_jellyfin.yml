@@ -1,0 +1,35 @@
+---
+
+- hosts: localhost
+  become: true
+  tasks:
+    - name: install curl gnupg
+      apt:
+        state: present
+        pkg:
+          - curl
+          - gnupg
+    - name: Download GPG signing key (by Jellyfin Team)
+      shell: "sudo mkdir -p /etc/apt/keyrings && \
+      curl -fsSL https://repo.jellyfin.org/jellyfin_team.gpg.key | sudo gpg --dearmor -o /etc/apt/keyrings/jellyfin.gpg"
+    - name: add repo at /etc/apt/sources.list.d/jellyfin.sources
+      shell: cat <<EOF | sudo tee /etc/apt/sources.list.d/jellyfin.sources
+    - shell: |
+        echo "
+        Types: deb
+        URIs: https://repo.jellyfin.org/$( awk -F'=' '/^ID=/{ print $NF }' /etc/os-release )
+        Suites: $( awk -F'=' '/^VERSION_CODENAME=/{ print $NF }' /etc/os-release )
+        Components: main
+        Architectures: $( dpkg --print-architecture )
+        Signed-By: /etc/apt/keyrings/jellyfin.gpg
+        EOF
+        "
+    - name:
+      shell: sudo apt update
+    - name: update repo cache and install jellyfin
+      apt:
+        update_cache: yes
+        name: jellyfin
+        state: present
+    - name: start and show jellyfin status
+      shell: sudo systemctl restart jellyfin && systemctl status jellyfin
